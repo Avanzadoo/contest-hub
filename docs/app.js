@@ -276,7 +276,14 @@ function renderSources(sources) {
     )
     .join('');
 
-  // 浏览器端实时抓取状态
+  // 云端定时更新说明（GitHub Actions 每 30 分钟重新抓取，页面每 3 分钟自动取新版）
+  if (state.mode !== 'server') {
+    el.innerHTML +=
+      '<span class="src-pill"><span class="led"></span>云端自动更新：<b>每 30 分钟</b>' +
+      '<span class="meta">由 GitHub Actions 抓取，页面自动获取最新版</span></span>';
+  }
+
+  // 手动触发过的浏览器实时抓取结果
   if (state.liveReport && state.liveReport.length) {
     el.innerHTML += state.liveReport
       .map(
@@ -482,7 +489,40 @@ function reloadLocal() {
   applyLocal([...(window.__SNAPSHOT__.items || []), ...state.extraItems, ...getLocalUser()]);
 }
 
-/** 浏览器端实时抓取：静态站没有后端，靠公开 CORS 代理直连源站 */
+/**
+ * 静态站真正的「实时更新」：GitHub Actions 会把最新的 snapshot.js 提交到仓库，
+ * 页面每隔几分钟重新拉一次这个文件，只要有新版本就自动换上并提示。
+ * 这样无需后端、无需代理，数据一样能持续刷新。
+ */
+async function pollSnapshot() {
+  if (state.mode === 'server') return;
+  try {
+    const res = await fetch(`snapshot.js?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const txt = (await res.text()).trim();
+    const m = /window\.__SNAPSHOT__=(\{[\s\S]*\});?$/.exec(txt);
+    if (!m) return;
+    const payload = JSON.parse(m[1]);
+    const prev = window.__SNAPSHOT__;
+    if (!prev) {
+      window.__SNAPSHOT__ = payload;
+      reloadLocal();
+      return;
+    }
+    if (payload.updatedAt > prev.updatedAt) {
+      const before = prev.items.length;
+      window.__SNAPSHOT__ = payload;
+      reloadLocal();
+      renderSources(payload.sources);
+      const diff = payload.items.length - before;
+      toast(`数据已更新：${payload.items.length} 条${diff > 0 ? `（新增 ${diff} 条）` : ''}`);
+    }
+  } catch (e) {
+    /* 离线或文件被缓存，忽略，等下一轮 */
+  }
+}
+
+/** 浏览器端实时抓取：静态站没有后端，靠公开 CORS 代理直连源站（默认不自动跑，点刷新才试） */
 async function maybeBrowserLive(force) {
   if (!window.LiveFetch || state.mode === 'server') return;
   const dot = $('#syncDot');
@@ -592,8 +632,9 @@ async function refreshLive() {
 function updateSync() {
   const el = $('#syncText');
   if (state.mode === 'snapshot') {
-    const live = state.extraItems.length ? ` · 浏览器实时抓取 ${state.extraItems.length} 条` : ' · 代理不可用（数据为快照）';
-    el.textContent = `快照生成于 ${relativeTime(window.__SNAPSHOT__?.updatedAt)}${live}`;
+    const snapTime = relativeTime(window.__SNAPSHOT__?.updatedAt);
+    const extra = state.extraItems.length ? ` · 浏览器实时 ${state.extraItems.length} 条` : '';
+    el.textContent = `云端自动更新（每 30 分钟）· 数据 ${snapTime}生成${extra} · 页面每 3 分钟自动检查新版`;
     $('#syncDot').className = 'dot';
     renderNextRefresh();
     return;
@@ -711,6 +752,8 @@ renderFilters();
 fetchData();
 setInterval(() => { if ($('#autoRefresh').checked) fetchData(); }, 60_000);
 setInterval(() => { tickCountdowns(); updateSync(); }, 1000);
-// 启动后先拉一次（服务端模式触发后端抓取，静态模式走浏览器实时抓取）
-setTimeout(refreshLive, 1200);
+// 启动后先拉一次（服务端模式触发后端抓取，静态模式检查是否有更新的快照）
+setTimeout(pollSnapshot, 1500);
+// 静态站：每 3 分钟检查一次云端是否已生成新数据
+setInterval(() => { if ($('#autoRefresh').checked) pollSnapshot(); }, 3 * 60 * 1000);
 setInterval(() => { if ($('#autoRefresh').checked) maybeBrowserLive(false); }, 10 * 60 * 1000);
