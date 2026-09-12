@@ -22,17 +22,24 @@
 
 | 用途 | 地址 |
 | --- | --- |
-| **正式对外地址** | **https://tinyurl.com/qian-competition** |
-| 实际主机 | https://2a2d7151ad664d66aedd11f4e1bf9a6c.app.workbuddy.host（短链 301 跳过来，平时不用管） |
+| **正式对外地址（带 qian 短链）** | **https://tinyurl.com/qian-hub** |
+| **正式站点（GitHub Pages）** | **https://avanzadoo.github.io/contest-hub/** |
+| 仓库 | https://github.com/Avanzadoo/contest-hub |
 | 本地实时版 | http://localhost:3001（双击 start.bat） |
 
 更新机制：
 
-1. **本地服务**：启动即抓取，之后每 **15 分钟**自动抓一轮；页面每 60 秒同步，顶部显示下次更新倒计时与新收录提示。
-2. **在线站点**：定时任务「比赛工作台：自动抓取并重新发布（qian-competition）」每天 **8 / 11 / 14 / 17 / 20 / 23 点**各跑一次 —— 重新抓三个数据源 → 重建 `dist/` → 重新部署。因为始终部署同一个 `dist/` 目录，**短链和主机地址都不会变**。
-3. 定时任务需要 WorkBuddy 在运行；没开时本地版照样自动更新（已配开机自启）。
+1. **GitHub Actions（主力，全自动）**：`.github/workflows/refresh.yml` 每 **30 分钟**在 GitHub 服务器跑一次 `node scripts/crawler.js`（抓 MLH / 我爱竞赛网 / DrivenData），更新 `docs/snapshot.js` 并自动提交，Pages 随即发布。**不需要开电脑、不需要开 WorkBuddy。**
+2. **本地服务**：启动即抓取，之后每 15 分钟一轮，页面每 60 秒同步（已配开机自启）。
+3. 旧的 CloudStudio 镜像与对应定时任务已暂停，仅作备份。
 
-发布目录固定为 `dist/`，`node scripts/build-site.js` 会先抓取数据源再全量覆盖 `dist/`。
+常用命令：
+
+```bash
+node scripts/make-crawler.js                       # 重建单文件爬虫 scripts/crawler.js
+set GH_TOKEN=xxx && node scripts/publish-github.js # 重新推送并发布
+node scripts/build-site.js                         # 重建 dist/（CloudStudio 备份用）
+```
 
 ## 两种使用方式
 
