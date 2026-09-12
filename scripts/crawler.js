@@ -19,11 +19,12 @@ function __require(id) {
   if (__cache[id]) return __cache[id].exports;
   const m = { exports: {} };
   __cache[id] = m;
+  // store.js 用 __dirname/../data 定位种子数据，所以这里伪装成 src/ 目录
   const fn = new Function('module', 'exports', 'require', '__dirname', '__filename', __src[id]);
   fn(m, m.exports, (req) => {
     const local = __resolve(id, req);
     return local ? __require(local) : require(req);
-  }, process.cwd(), 'crawler.js');
+  }, path.join(process.cwd(), 'src'), 'crawler.js');
   return m.exports;
 }
 
