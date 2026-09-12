@@ -1,0 +1,14 @@
+{
+  "name": "contest-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "比赛实时更新工作台 —— 聚合高含金量、有奖金的国内外赛事",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
