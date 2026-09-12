@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>比赛实时工作台 · 高含金量赛事聚合</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏆</text></svg>" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🏆</span>
+    <div>
+      <h1>比赛实时工作台</h1>
+      <p class="sub">高含金量 · 有奖金 · 国内外赛事一站聚合</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="sync">
+      <span id="syncDot" class="dot"></span>
+      <span id="syncText">加载中…</span>
+      <span class="sep">·</span>
+      <span id="nextRefresh">自动更新：计算中</span>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="autoRefresh" checked />
+      <span>自动刷新</span>
+    </label>
+    <button id="refreshBtn" class="btn btn-ghost" title="立即拉取实时数据源">⟳ 刷新</button>
+    <button id="addBtn" class="btn btn-primary">+ 添加比赛</button>
+  </div>
+</header>
+
+<section class="stats" id="stats"></section>
+<section class="source-bar" id="sourceBar"></section>
+
+<main class="layout">
+  <aside class="filters" id="filters">
+    <div class="filter-head">
+      <h2>筛选</h2>
+      <button id="resetBtn" class="link-btn">重置</button>
+    </div>
+    <div class="search-box">
+      <input id="searchInput" type="search" placeholder="搜索赛事 / 主办方 / 领域…" />
+    </div>
+    <div id="filterGroups"></div>
+    <div class="filter-foot">
+      <label class="switch"><input type="checkbox" id="favOnly" /><span>只看收藏</span></label>
+      <div class="fav-count">收藏 <b id="favCount">0</b> 项</div>
+    </div>
+  </aside>
+
+  <section class="content">
+    <div class="toolbar">
+      <div class="result-count"><b id="countNum">0</b> 项赛事</div>
+      <div class="sort-box">
+        <label>排序</label>
+        <select id="sortSelect">
+          <option value="deadline">截止最近</option>
+          <option value="prize">奖金最高</option>
+          <option value="tier">含金量</option>
+          <option value="updated">最新收录</option>
+        </select>
+      </div>
+    </div>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" hidden>
+      <p>没有符合条件的比赛</p>
+      <button class="btn btn-ghost" onclick="document.getElementById('resetBtn').click()">清除筛选</button>
+    </div>
+  </section>
+</main>
+
+<!-- 详情抽屉 -->
+<div class="drawer-mask" id="drawerMask" hidden></div>
+<aside class="drawer" id="drawer" hidden>
+  <div class="drawer-head">
+    <div>
+      <span class="badge" id="dRegion"></span>
+      <span class="badge" id="dType"></span>
+      <span class="badge" id="dField"></span>
+    </div>
+    <button class="icon-btn" id="drawerClose">✕</button>
+  </div>
+  <h2 id="dName"></h2>
+  <p class="d-alias" id="dAlias"></p>
+  <div class="d-grid" id="dGrid"></div>
+  <div class="d-block">
+    <h3>赛事简介</h3>
+    <p id="dSummary"></p>
+  </div>
+  <div class="d-block">
+    <h3>奖金 / 奖励</h3>
+    <p id="dPrize"></p>
+  </div>
+  <div class="d-block">
+    <h3>截止时间</h3>
+    <p id="dDeadline"></p>
+  </div>
+  <div class="d-block">
+    <h3>参赛对象</h3>
+    <p id="dEligibility"></p>
+  </div>
+  <div class="d-tags" id="dTags"></div>
+  <div class="d-actions">
+    <a id="dUrl" class="btn btn-primary" target="_blank" rel="noopener">↗ 打开原地址（官网）</a>
+    <a id="dUrl2" class="btn btn-ghost" target="_blank" rel="noopener" hidden>报名入口</a>
+    <button id="dCopy" class="btn btn-ghost">复制链接</button>
+    <button id="dFav" class="btn btn-ghost">☆ 收藏</button>
+  </div>
+  <p class="d-source" id="dSource"></p>
+</aside>
+
+<!-- 添加比赛 -->
+<div class="modal-mask" id="addMask" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>添加比赛</h2>
+      <button class="icon-btn" id="addClose">✕</button>
+    </div>
+    <form id="addForm">
+      <div class="form-row">
+        <label>赛事名称 *</label>
+        <input name="name" required placeholder="如：XX 全国大学生创新创业大赛" />
+      </div>
+      <div class="form-row">
+        <label>官网原地址 *</label>
+        <input name="url" required type="url" placeholder="https://" />
+      </div>
+      <div class="form-row two">
+        <div>
+          <label>主办方</label>
+          <input name="organizer" placeholder="如：教育部、腾讯、MIT" />
+        </div>
+        <div>
+          <label>主办类型</label>
+          <select name="organizerType">
+            <option value="gov">政府 / 部委</option>
+            <option value="university">高校 / 教指委</option>
+            <option value="company">企业</option>
+            <option value="org">学会 / 机构</option>
+            <option value="intlorg">国际组织</option>
+            <option value="community">社区 / 平台</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row two">
+        <div>
+          <label>地域</label>
+          <select name="region">
+            <option value="cn">国内</option>
+            <option value="intl">国际</option>
+          </select>
+        </div>
+        <div>
+          <label>领域</label>
+          <select name="field">
+            <option value="entrepreneurship">创新创业</option>
+            <option value="ai">AI / 算法</option>
+            <option value="data">数据科学</option>
+            <option value="math">数学建模</option>
+            <option value="language">外语 / 演讲</option>
+            <option value="bio">生科 / 医学</option>
+            <option value="business">金融 / 商科</option>
+            <option value="design">设计 / 创意</option>
+            <option value="engineering">工程技术</option>
+            <option value="tech">科技 / 公益</option>
+            <option value="algorithm">算法 / 编程</option>
+            <option value="hackathon">黑客松</option>
+            <option value="law">法学 / 辩论</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row two">
+        <div>
+          <label>截止日期</label>
+          <input name="deadline" type="date" />
+        </div>
+        <div>
+          <label>奖金（元，可留空）</label>
+          <input name="prizeAmount" type="number" min="0" placeholder="如 20000" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>奖金 / 奖励说明</label>
+        <input name="prizeText" placeholder="如：冠军 100 万美元" />
+      </div>
+      <div class="form-row">
+        <label>赛事简介</label>
+        <textarea name="summary" rows="3" placeholder="一两句说清这是什么比赛、适合谁参加"></textarea>
+      </div>
+      <div class="form-row">
+        <label>标签（逗号分隔）</label>
+        <input name="tags" placeholder="如：国际,百万美元,保研加分" />
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-ghost" id="addCancel">取消</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="live.js"></script>
+<script src="snapshot.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
