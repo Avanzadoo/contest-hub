@@ -4,9 +4,12 @@ name: refresh-contests
 on:
   schedule:
     - cron: '*/30 * * * *'
-  push:
-    branches: [main]
   workflow_dispatch:
+
+# 防止多次运行互相覆盖/竞争
+concurrency:
+  group: refresh-contests
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -16,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -36,5 +41,6 @@ jobs:
             echo "数据无变化，跳过提交"
           else
             git commit -m "自动更新赛事数据 $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            git push
+            git pull --rebase --autostash origin main
+            git push origin main
           fi
